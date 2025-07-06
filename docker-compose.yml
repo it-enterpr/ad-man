@@ -1,0 +1,58 @@
+# ==============================================================================
+# SOUBOR: /srv/ad-man/docker-compose.yml
+# ==============================================================================
+# Tento soubor definuje všechny služby potřebné pro běh Ad-Manu:
+# Databázi a samotnou aplikaci.
+
+services:
+  # --- Služba PostgreSQL Databáze pro Ad-Man ---
+  db:
+    image: postgres:16
+    container_name: adman-db
+    restart: unless-stopped
+    volumes:
+      - adman_postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=adman
+      - POSTGRES_USER=adman
+      - POSTGRES_PASSWORD=SuperHesloProAdmanDb_sK5!g9@p
+    networks:
+      - internal
+
+  # --- Služba Django Aplikace (Ad-Man) ---
+  app:
+    container_name: adman-app
+    restart: unless-stopped
+    build: . # Sestaví se podle instrukcí v souboru Dockerfile
+    user: "root" # KLÍČOVÁ OPRAVA: Explicitně spouštíme jako root
+    volumes:
+      - ./app:/app # Připojíme složku s kódem aplikace
+      # DŮLEŽITÝ ŘÁDEK: Připojíme složku s klienty
+      - /srv/clients:/srv/clients
+      # Připojíme Docker socket, aby aplikace mohla spouštět příkazy
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - internal
+      - proxy # Připojíme i do proxy sítě pro komunikaci s Traefikem
+    depends_on:
+      - db
+    environment:
+      - DATABASE_URL=postgres://adman:SuperHesloProAdmanDb_sK5!g9@p@db:5432/adman
+      - SECRET_KEY=NahodnyTajnyKlicProDjango_aB1$$c2!fG
+    labels:
+      - "traefik.enable=true"
+      # --- Pravidla pro Traefik ---
+      - "traefik.http.routers.adman.rule=Host(`adman.it-enterprise.solutions`)"
+      - "traefik.http.routers.adman.entrypoints=websecure"
+      - "traefik.http.routers.adman.tls.certresolver=letsencrypt"
+      - "traefik.http.services.adman.loadbalancer.server.port=8000" # Směrujeme na Gunicorn
+      - "traefik.docker.network=proxy"
+
+volumes:
+  adman_postgres_data:
+
+networks:
+  proxy:
+    external: true
+  internal:
+    driver: bridge

@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+
+# Instance
+/instance/
+
+# Databáze
+*.sqlite3
+adman_postgres_data/
+
+# Soubory prostředí
+.env
+
+# Docker
+.dockerignore
+
+# IDE
+.idea/
+.vscode/
