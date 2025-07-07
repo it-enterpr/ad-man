@@ -1,0 +1,45 @@
+services:
+  odoo:
+    image: odoo:18.0
+    container_name: {{CLIENT_NAME}}-odoo
+    restart: unless-stopped
+    user: "root"
+    networks:
+      - proxy
+      - internal
+    depends_on:
+      - odoo_db
+    volumes:
+      - ./data/odoo_data:/var/lib/odoo
+      - ./addons:/mnt/extra-addons
+      - ./config/odoo.conf:/etc/odoo/odoo.conf
+    environment:
+      - HOST=odoo_db
+      - USER=odoo
+      - PASSWORD=HesloProDb_{{CLIENT_NAME}}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.{{CLIENT_NAME}}-odoo.rule=Host(`odoo.{{CLIENT_DOMAIN}}`)"
+      - "traefik.http.routers.{{CLIENT_NAME}}-odoo.entrypoints=websecure"
+      - "traefik.http.routers.{{CLIENT_NAME}}-odoo.tls.certresolver=letsencrypt"
+      - "traefik.http.services.{{CLIENT_NAME}}-odoo.loadbalancer.server.port=8069"
+      - "traefik.docker.network=proxy"
+
+  odoo_db:
+    image: postgres:16
+    container_name: {{CLIENT_NAME}}-odoo_db
+    restart: unless-stopped
+    networks:
+      - internal
+    volumes:
+      - ./data/postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=HesloProDb_{{CLIENT_NAME}}
+      - POSTGRES_DB=postgres
+
+networks:
+  proxy:
+    external: true
+  internal:
+    driver: bridge

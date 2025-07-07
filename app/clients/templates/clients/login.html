@@ -1,0 +1,26 @@
+{% extends "clients/layout.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Přihlášení - Ad-Man{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card mt-4 shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="text-center h3 mb-4">Ad-Man Přihlášení</h1>
+                {% if form.errors %}
+                <div class="alert alert-danger">Vaše jméno nebo heslo není správné. Zkuste to znovu.</div>
+                {% endif %}
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Přihlásit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

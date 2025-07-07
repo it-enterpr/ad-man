@@ -1,0 +1,53 @@
+{% extends "clients/layout.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Správa: {{ client.company_name }}{% endblock %}
+
+{% block content %}
+<h1>Správa souborů: {{ client.company_name }}</h1>
+<p>Zde můžete nahrávat soubory do jednotlivých složek klienta.</p>
+
+<div class="accordion mt-4" id="fileAccordion">
+    {% for path, content in file_tree.items %}
+    <div class="accordion-item">
+        <h2 class="accordion-header" id="heading-{{ forloop.counter }}">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                data-bs-target="#collapse-{{ forloop.counter }}" aria-expanded="false"
+                aria-controls="collapse-{{ forloop.counter }}">
+                <strong>Složka: <code>/srv/clients/{{ client.internal_name }}/{{ path }}</code></strong>
+            </button>
+        </h2>
+        <div id="collapse-{{ forloop.counter }}" class="accordion-collapse collapse"
+            aria-labelledby="heading-{{ forloop.counter }}" data-bs-parent="#fileAccordion">
+            <div class="accordion-body">
+                <div class="row">
+                    <div class="col-md-7">
+                        <h6>Obsah složky:</h6>
+                        <ul class="list-unstyled ps-3 mt-2">
+                            {% for dir in content.dirs %}
+                            <li>&#128193; {{ dir }}/</li>
+                            {% endfor %}
+                            {% for file in content.files %}
+                            <li>&#128441; {{ file }}</li>
+                            {% empty %}
+                            <li class="text-muted">Složka je prázdná.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="col-md-5 border-start">
+                        <h6>Nahrát soubor do této složky:</h6>
+                        <form method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            {{ content.form|crispy }}
+                            <button type="submit" class="btn btn-sm btn-primary mt-2">Nahrát</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<a href="{% url 'dashboard' %}" class="btn btn-secondary mt-4">Zpět na Dashboard</a>
+{% endblock %}

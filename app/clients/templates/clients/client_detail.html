@@ -1,21 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detail Klienta - Ad-Man</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'dashboard' %}">Ad-Man</a>
-        </div>
-    </nav>
-    <div class="container mt-4">
-        <h1>Detail klienta: {{ client_name }}</h1>
-        <p>Zde budou zobrazeny podrobnosti a akce pro tohoto klienta.</p>
-        <a href="{% url 'dashboard' %}" class="btn btn-secondary">Zpět na Dashboard</a>
+{% extends "clients/layout.html" %}
+
+{% block title %}Detail: {{ client.company_name }}{% endblock %}
+
+{% block content %}
+<h1>Správa souborů: {{ client.company_name }}</h1>
+<p>Zde jsou uvedeny absolutní cesty na serveru k důležitým souborům a složkám klienta. Můžete je použít pro přístup přes
+    SFTP nebo pro přímou editaci na serveru.</p>
+
+<div class="list-group mt-4">
+    {% for name, content in file_tree.items %}
+    <div class="list-group-item">
+        <strong>Složka: <code>/srv/clients/{{ client.internal_name }}/{{ name }}</code></strong>
+        <ul class="list-unstyled ps-3 mt-2">
+            {% for dir in content.dirs %}
+            <li>&#128193; {{ dir }}</li>
+            {% endfor %}
+            {% for file in content.files %}
+            <li>&#128441; {{ file }}</li>
+            {% endfor %}
+        </ul>
     </div>
-</body>
-</html>
+    {% endfor %}
+</div>
+
+<a href="{% url 'dashboard' %}" class="btn btn-secondary mt-4">Zpět na Dashboard</a>
+{% endblock %}

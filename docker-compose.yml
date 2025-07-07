@@ -1,11 +1,4 @@
-# ==============================================================================
-# SOUBOR: /srv/ad-man/docker-compose.yml
-# ==============================================================================
-# Tento soubor definuje všechny služby potřebné pro běh Ad-Manu:
-# Databázi a samotnou aplikaci.
-
 services:
-  # --- Služba PostgreSQL Databáze pro Ad-Man ---
   db:
     image: postgres:16
     container_name: adman-db
@@ -18,22 +11,18 @@ services:
       - POSTGRES_PASSWORD=SuperHesloProAdmanDb_sK5!g9@p
     networks:
       - internal
-
-  # --- Služba Django Aplikace (Ad-Man) ---
   app:
     container_name: adman-app
     restart: unless-stopped
-    build: . # Sestaví se podle instrukcí v souboru Dockerfile
-    user: "root" # KLÍČOVÁ OPRAVA: Explicitně spouštíme jako root
+    build: .
+    user: "root"
     volumes:
-      - ./app:/app # Připojíme složku s kódem aplikace
-      # DŮLEŽITÝ ŘÁDEK: Připojíme složku s klienty
+      - ./app:/app # FINÁLNÍ OPRAVA: Mapujeme pouze adresář s Django aplikací
       - /srv/clients:/srv/clients
-      # Připojíme Docker socket, aby aplikace mohla spouštět příkazy
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - internal
-      - proxy # Připojíme i do proxy sítě pro komunikaci s Traefikem
+      - proxy
     depends_on:
       - db
     environment:
@@ -41,16 +30,32 @@ services:
       - SECRET_KEY=NahodnyTajnyKlicProDjango_aB1$$c2!fG
     labels:
       - "traefik.enable=true"
-      # --- Pravidla pro Traefik ---
       - "traefik.http.routers.adman.rule=Host(`adman.it-enterprise.solutions`)"
       - "traefik.http.routers.adman.entrypoints=websecure"
       - "traefik.http.routers.adman.tls.certresolver=letsencrypt"
-      - "traefik.http.services.adman.loadbalancer.server.port=8000" # Směrujeme na Gunicorn
+      - "traefik.http.services.adman.loadbalancer.server.port=8000"
+      - "traefik.docker.network=proxy"
+  
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    container_name: adman-filebrowser
+    restart: unless-stopped
+    user: "root"
+    volumes:
+      - /srv/clients:/srv
+      - ./filebrowser_db:/database
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.adman-files.rule=Host(`files.adman.it-enterprise.solutions`)"
+      - "traefik.http.routers.adman-files.entrypoints=websecure"
+      - "traefik.http.routers.adman-files.tls.certresolver=letsencrypt"
+      - "traefik.http.services.adman-files.loadbalancer.server.port=80"
       - "traefik.docker.network=proxy"
 
 volumes:
   adman_postgres_data:
-
 networks:
   proxy:
     external: true

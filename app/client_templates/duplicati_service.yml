@@ -1,0 +1,22 @@
+duplicati:
+  image: lscr.io/linuxserver/duplicati:latest
+  container_name: {{CLIENT_NAME}}-duplicati
+  restart: unless-stopped
+  networks: [proxy]
+  volumes:
+    - ./data/duplicati_config:/config
+    - ./data:/source/data:ro
+    - /srv/bcp/{{CLIENT_NAME}}:/backups
+  environment:
+    - PUID=0
+    - PGID=0
+    - TZ=Europe/Prague
+    - SETTINGS_ENCRYPTION_KEY=KlicProDuplicati_{{CLIENT_NAME}}
+  labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.{{CLIENT_NAME}}-duplicati.rule=Host(`backup.{{CLIENT_DOMAIN}}`)"
+    - "traefik.http.routers.{{CLIENT_NAME}}-duplicati.entrypoints=websecure"
+    - "traefik.http.routers.{{CLIENT_NAME}}-duplicati.tls.certresolver=letsencrypt"
+    - "traefik.http.routers.{{CLIENT_NAME}}-duplicati.middlewares=auth@file"
+    - "traefik.http.services.{{CLIENT_NAME}}-duplicati.loadbalancer.server.port=8200"
+    - "traefik.docker.network=proxy"

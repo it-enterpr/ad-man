@@ -1,0 +1,22 @@
+{% extends "clients/layout.html" %}
+
+{% block title %}Správa: {{ client.company_name }}{% endblock %}
+
+{% block content %}
+<h1>Správa klienta: {{ client.company_name }}</h1>
+<p>Zde naleznete přímé odkazy do souborového manažeru pro správu klíčových složek.</p>
+
+<div class="list-group mt-4">
+    {% for name, url in paths.items %}
+    <a href="{{ url }}" target="_blank" rel="noopener noreferrer" class="list-group-item list-group-item-action">
+        <strong>{{ name }}</strong>
+        <br>
+        <small class="text-muted">Otevřít ve správci souborů</small>
+    </a>
+    {% empty %}
+    <p class="text-muted">Pro tohoto klienta nejsou definovány žádné spravovatelné složky.</p>
+    {% endfor %}
+</div>
+
+<a href="{% url 'dashboard' %}" class="btn btn-secondary mt-4">Zpět na Dashboard</a>
+{% endblock %}

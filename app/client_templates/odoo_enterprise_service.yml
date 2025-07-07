@@ -1,0 +1,24 @@
+odoo-enterprise:
+  # UPOZORNĚNÍ: Zde musíte zadat cestu k vašemu privátnímu Docker obrazu
+  # pro Odoo Enterprise, který obsahuje koupené moduly.
+  image: vase-privatni-repo/odoo-enterprise:18.0
+  container_name: {{CLIENT_NAME}}-odoo-enterprise
+  restart: unless-stopped
+  user: "root"
+  networks: [proxy, internal]
+  depends_on: [odoo_db]
+  volumes:
+    - ./data/odoo_enterprise_data:/var/lib/odoo
+    - ./addons:/mnt/extra-addons
+    - ./config/odoo.conf:/etc/odoo/odoo.conf
+  environment:
+    - HOST=odoo_db
+    - USER=odoo
+    - PASSWORD=HesloProDb_{{CLIENT_NAME}}
+  labels:
+    - "traefik.enable=true"
+    - "traefik.http.routers.{{CLIENT_NAME}}-odoo-enterprise.rule=Host(`enterprise.{{CLIENT_DOMAIN}}`)"
+    - "traefik.http.routers.{{CLIENT_NAME}}-odoo-enterprise.entrypoints=websecure"
+    - "traefik.http.routers.{{CLIENT_NAME}}-odoo-enterprise.tls.certresolver=letsencrypt"
+    - "traefik.http.services.{{CLIENT_NAME}}-odoo-enterprise.loadbalancer.server.port=8069"
+    - "traefik.docker.network=proxy"
