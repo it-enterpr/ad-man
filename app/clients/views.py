@@ -1,71 +1,62 @@
 from django.shortcuts import render, redirect
+from .models import Client
+from .forms import ClientForm
 import os
 import subprocess
 import shutil
-import docker # <-- Nový import
+import docker
 
-# Zobrazí hlavní dashboard se seznamem klientů a jejich stavem
 def dashboard(request):
-    clients_dir = '/srv/clients'
+    clients = Client.objects.all() # Získáme všechny klienty z databáze
     clients_data = []
-    docker_client = docker.from_env() # Vytvoříme klienta pro komunikaci s Dockerem
+    docker_client = docker.from_env()
 
-    try:
-        client_names = [name for name in os.listdir(clients_dir) if os.path.isdir(os.path.join(clients_dir, name))]
-        
-        for name in client_names:
-            # Zjistíme stav kontejnerů pro daného klienta
-            try:
-                # Najdeme všechny kontejnery, které patří k tomuto projektu (složitější, ale spolehlivější)
-                # Pro zjednodušení budeme hledat kontejner, jehož jméno začíná názvem klienta
-                containers = docker_client.containers.list(filters={'name': f'^{name}-'})
-                status = 'Běží' if any(c.status == 'running' for c in containers) else 'Zastaveno'
-            except docker.errors.APIError:
-                status = 'Neznámý'
-
-            clients_data.append({'name': name, 'status': status})
-
-    except FileNotFoundError:
-        pass
+    for client in clients:
+        try:
+            containers = docker_client.containers.list(filters={'name': f'^{client.internal_name}-'})
+            status = 'Běží' if any(c.status == 'running' for c in containers) else 'Zastaveno'
+        except docker.errors.APIError:
+            status = 'Neznámý'
+        clients_data.append({'client': client, 'status': status})
 
     context = {
-        'clients': clients_data
+        'clients_data': clients_data
     }
     return render(request, 'clients/dashboard.html', context)
 
-# Ostatní funkce (client_detail, create_client, atd.) zůstávají stejné...
-# (Zde by byl zbytek kódu z předchozí verze, ale pro přehlednost ho vynecháváme)
-# DŮLEŽITÉ: Ujistěte se, že máte v souboru i ostatní funkce (client_detail, atd.)!
-# Pro jistotu je zde znovu uvádím všechny:
-
-def client_detail(request, client_name):
-    context = {
-        'client_name': client_name
-    }
-    return render(request, 'clients/client_detail.html', context)
-
 def create_client(request):
     if request.method == 'POST':
-        client_name = request.POST.get('client_name')
-        client_domain = request.POST.get('client_domain')
-        if client_name and client_domain:
-            client_path = os.path.join('/srv/clients', client_name)
+        form = ClientForm(request.POST)
+        if form.is_valid():
+            client = form.save() # Uložíme data z formuláře do databáze
+            
+            # Zbytek logiky pro vytvoření složky a souborů zůstává
+            client_path = os.path.join('/srv/clients', client.internal_name)
             try:
                 os.makedirs(client_path, exist_ok=True)
                 template_path = '/app/client_templates/base_template.yml'
                 with open(template_path, 'r') as f:
                     template_content = f.read()
-                new_content = template_content.replace('{{CLIENT_NAME}}', client_name)
-                new_content = new_content.replace('{{CLIENT_DOMAIN}}', client_domain)
+                
+                new_content = template_content.replace('{{CLIENT_NAME}}', client.internal_name)
+                new_content = new_content.replace('{{CLIENT_DOMAIN}}', client.domain)
+                
                 new_compose_path = os.path.join(client_path, 'docker-compose.yml')
                 with open(new_compose_path, 'w') as f:
                     f.write(new_content)
+
                 subprocess.run(['docker', 'compose', '-f', new_compose_path, 'up', '-d'], check=True)
             except Exception as e:
-                print(f"Error: {e}")
-            return redirect('dashboard')
-    return render(request, 'clients/create_client.html')
+                print(f"Error creating client files: {e}")
+                # Zde by mělo být lepší zpracování chyb
 
+            return redirect('dashboard')
+    else:
+        form = ClientForm()
+
+    return render(request, 'clients/create_client.html', {'form': form})
+
+# Ostatní funkce (start, stop, delete) zatím necháme pracovat se jménem složky
 def stop_client(request, client_name):
     client_path = os.path.join('/srv/clients', client_name)
     compose_file = os.path.join(client_path, 'docker-compose.yml')
@@ -87,6 +78,14 @@ def start_client(request, client_name):
     return redirect('dashboard')
 
 def delete_client(request, client_name):
+    # Nejprve smažeme záznam z databáze
+    try:
+        client = Client.objects.get(internal_name=client_name)
+        client.delete()
+    except Client.DoesNotExist:
+        pass # Klient v databázi neexistuje, pokračujeme dál
+
+    # Poté smažeme soubory a kontejnery
     client_path = os.path.join('/srv/clients', client_name)
     compose_file = os.path.join(client_path, 'docker-compose.yml')
     if os.path.exists(compose_file):
